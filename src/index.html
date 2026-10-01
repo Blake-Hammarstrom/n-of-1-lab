@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Privacy by architecture: the app may not connect anywhere. Data stays in this browser. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>N-of-1 Lab · Does it actually work for you?</title>
+<meta name="description" content="Run randomized, pre-registered experiments on yourself. Private: your data never leaves your device.">
+<meta name="theme-color" content="#121316">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <a href="#/" class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="12" r="4"/><circle cx="17" cy="12" r="4"/></svg>N-of-1 Lab</a>
+  <span class="private" title="No accounts, no servers. Everything is stored in this browser.">Private · on this device only</span>
+</header>
+<main id="app" aria-live="polite"></main>
+<div id="toast" role="status"></div>
+<footer class="foot">A Blakes Second Brain project. Randomized block crossover · anytime-valid inference · no tracking.</footer>
+<script type="module" src="app/main.js"></script>
+</body>
+</html>

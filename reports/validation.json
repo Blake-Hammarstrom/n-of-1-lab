@@ -1,0 +1,111 @@
+{
+  "protocol": "docs/VALIDATION_PROTOCOL.md (fixed 2026-10-01)",
+  "evidence": "method verification on synthetic data (rung 2)",
+  "ranAt": "2026-10-01T16:06:45.583Z",
+  "sims": 4000,
+  "limit": 0.05689202437604511,
+  "scenarios": [
+    {
+      "id": "S1",
+      "noise": "iid",
+      "periodDays": 1,
+      "falsePositive": 0.013,
+      "everExcludedTruth": 0.01575,
+      "powerAt30Blocks": 0.3975,
+      "baselineNaivePeekingT": 0.26575,
+      "baselineBeforeAfter": 0.0515
+    },
+    {
+      "id": "S2",
+      "noise": "t3",
+      "periodDays": 1,
+      "falsePositive": 0.01175,
+      "everExcludedTruth": 0.01025,
+      "powerAt30Blocks": 0.59725,
+      "baselineNaivePeekingT": 0.22825,
+      "baselineBeforeAfter": 0.04375
+    },
+    {
+      "id": "S3",
+      "noise": "ar",
+      "periodDays": 1,
+      "falsePositive": 0.015,
+      "everExcludedTruth": 0.014,
+      "powerAt30Blocks": 0.95175,
+      "baselineNaivePeekingT": 0.2755,
+      "baselineBeforeAfter": 0.4055
+    },
+    {
+      "id": "S4",
+      "noise": "trend",
+      "periodDays": 1,
+      "falsePositive": 0.01325,
+      "everExcludedTruth": 0.01425,
+      "powerAt30Blocks": 0.4125,
+      "baselineNaivePeekingT": 0.27675,
+      "baselineBeforeAfter": 1
+    },
+    {
+      "id": "S5",
+      "noise": "skew",
+      "periodDays": 1,
+      "falsePositive": 0.0135,
+      "everExcludedTruth": 0.011,
+      "powerAt30Blocks": 0.413,
+      "baselineNaivePeekingT": 0.21575,
+      "baselineBeforeAfter": 0.045
+    },
+    {
+      "id": "S6",
+      "noise": "coarse",
+      "periodDays": 1,
+      "falsePositive": 0.01275,
+      "everExcludedTruth": 0.01425,
+      "powerAt30Blocks": 0.5695,
+      "baselineNaivePeekingT": 0.257,
+      "baselineBeforeAfter": 0.05175
+    },
+    {
+      "id": "S7",
+      "noise": "iid",
+      "periodDays": 3,
+      "falsePositive": 0.01075,
+      "everExcludedTruth": 0.011,
+      "powerAt30Blocks": 0.93275,
+      "baselineNaivePeekingT": 0.26775,
+      "baselineBeforeAfter": 0.0505
+    },
+    {
+      "id": "S8",
+      "noise": "ar",
+      "periodDays": 3,
+      "falsePositive": 0.01275,
+      "everExcludedTruth": 0.01175,
+      "powerAt30Blocks": 0.89025,
+      "baselineNaivePeekingT": 0.27825,
+      "baselineBeforeAfter": 0.4175
+    }
+  ],
+  "planner": [
+    {
+      "id": "S7",
+      "recommendedBlocks": 26,
+      "plannerPower": 0.82,
+      "simulatedPower": 0.878,
+      "gap": 0.05800000000000005
+    },
+    {
+      "id": "S2-3day",
+      "recommendedBlocks": 26,
+      "plannerPower": 0.82,
+      "simulatedPower": 0.916,
+      "gap": 0.09600000000000009
+    }
+  ],
+  "criteria": {
+    "V1_false_positives": "met",
+    "V2_coverage": "met",
+    "V3_planner": "met"
+  },
+  "seconds": 157
+}

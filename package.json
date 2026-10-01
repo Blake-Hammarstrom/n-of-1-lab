@@ -1,0 +1,12 @@
+{
+  "name": "n-of-1-lab",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "validate": "node scripts/validate.mjs",
+    "build": "node build.mjs",
+    "serve": "node build.mjs && node scripts/serve.mjs 4174"
+  }
+}

@@ -1,0 +1,15 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm test
+      - run: npm run build
+      # Re-check the engine's statistical guarantees on every change (reduced run; the full run is reports/validation.md)
+      # V1/V2 (validity) are stable at 400 sims; V3 (planner accuracy, limit 10 points) is judged only by the
+      # full 4,000-sim protocol run, because ±2-point Monte Carlo noise at 400 sims straddles its threshold.
+      - run: SIMS=400 node scripts/validate.mjs && node -e "const c=require('./reports/validation.json').criteria; if(c.V1_false_positives!=='met'||c.V2_coverage!=='met'){console.error(c);process.exit(1)}"
