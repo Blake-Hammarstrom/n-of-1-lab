@@ -1,0 +1,23 @@
+# Step 4 regression gate: a "fix" PR's new tests must fail on base and pass on head. Runs PR code, so it uses
+# pull_request (read-only token, no secrets). The PR could edit this file, but sb-gate (from base) fails any
+# .github change, and both checks are required.
+name: sb-regression
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+permissions: { contents: read }
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, ref: "${{ github.event.pull_request.head.sha }}", persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Regression gate
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python3 .github/sb-gate/gate.py regression --base "$BASE" --head "$HEAD" --title "$TITLE"

@@ -1,0 +1,22 @@
+# Step 4 static gate. pull_request_target runs THIS file and the gate from the base branch (main), so a PR
+# can't edit the check that judges it. PR content is fetched as data and never executed in this job.
+name: sb-gate
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+permissions: { contents: read }
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Fetch PR head as data
+        run: git fetch --no-tags origin "+refs/pull/${{ github.event.pull_request.number }}/head:refs/sb/pr"
+      - name: Static gate
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python3 .github/sb-gate/gate.py static --base "$BASE" --head "$HEAD" --title "$TITLE"
