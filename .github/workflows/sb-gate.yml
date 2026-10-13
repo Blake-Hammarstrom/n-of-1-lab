@@ -16,7 +16,8 @@ jobs:
         run: git fetch --no-tags origin "+refs/pull/${{ github.event.pull_request.number }}/head:refs/sb/pr"
       - name: Static gate
         env:
-          TITLE: ${{ github.event.pull_request.title }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-        run: python3 .github/sb-gate/gate.py static --base "$BASE" --head "$HEAD" --title "$TITLE"
+        run: python3 .github/sb-gate/gate.py static --base "$BASE" --head "$HEAD" --head-ref "$HEAD_REF" --same-repo "$SAME_REPO"

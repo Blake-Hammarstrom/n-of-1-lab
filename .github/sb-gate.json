@@ -1,1 +1,83 @@
-{"protected": ["scripts/validate.mjs"]}
+{
+  "protected": [
+    "scripts/validate.mjs"
+  ],
+  "taskClasses": {
+    "docs-only": {
+      "allow": [
+        "docs/",
+        "*.md"
+      ],
+      "requires": {
+        "docs": true
+      },
+      "maxFiles": 10,
+      "maxLines": 300
+    },
+    "tests-only": {
+      "allow": [
+        "test/"
+      ],
+      "requires": {
+        "tests": true
+      },
+      "maxFiles": 8,
+      "maxLines": 400
+    },
+    "bug-fix-with-regression-test": {
+      "allow": [
+        "src/",
+        "test/",
+        "docs/",
+        "*.md"
+      ],
+      "requires": {
+        "src": true,
+        "tests": true,
+        "failsOnBase": true
+      },
+      "maxFiles": 10,
+      "maxLines": 300
+    },
+    "small-feature-with-tests": {
+      "allow": [
+        "src/",
+        "test/",
+        "docs/",
+        "*.md"
+      ],
+      "requires": {
+        "src": true,
+        "tests": true,
+        "addsTests": true,
+        "failsOnBase": true
+      },
+      "maxFiles": 15,
+      "maxLines": 600
+    }
+  },
+  "level2Excluded": {
+    "paths": [
+      "CLAUDE.md",
+      ".claude/",
+      "scripts/",
+      "*auth*",
+      "*security*",
+      "*crypto*",
+      "*migration*"
+    ],
+    "content": [
+      "\\bfetch\\s*\\(",
+      "XMLHttpRequest",
+      "\\bWebSocket\\b",
+      "\\bEventSource\\b",
+      "sendBeacon",
+      "\\beval\\s*\\(",
+      "new\\s+Function\\s*\\(",
+      "\\bimport\\s*\\(\\s*['\\\"`]https?:",
+      "Content-Security-Policy",
+      "connect-src",
+      "<script[^>]*\\bsrc\\s*=\\s*['\\\"]?https?:"
+    ]
+  }
+}
