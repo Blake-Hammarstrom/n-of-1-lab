@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { test } from "node:test";
-import { analyze, createExperiment, exportData, importData, logValue, verifyPrereg } from "../src/app/model.js";
+import { analyze, createExperiment, exportData, importData, logValue, schedule, verifyPrereg } from "../src/app/model.js";
 import { sampleExperiment } from "../src/app/sample.js";
+import { daysIn } from "../src/engine/schedule.js";
 
 const plan = { question: "Does X help?", aLabel: "Without X", bLabel: "With X",
   outcome: { name: "Score", unit: "pts", better: "higher", resolution: 1 }, mme: 2, daySd: 3, periodDays: 2, blocks: 8, start: "2026-10-05" };
@@ -41,6 +42,25 @@ test("export → import round-trips, and import rejects a tampered plan", async 
   const tampered = JSON.parse(exportData([e]));
   tampered.experiments[0].protocol.mme = 0.5;
   await assert.rejects(importData(JSON.stringify(tampered)), /edited after it was pre-registered/);
+});
+
+test("regression: a 2-block experiment cannot report a decisive meaningful effect through analyze()", async () => {
+  // Small daySd and only 2 complete (of 4 planned) blocks are what used to hit the
+  // confidence-sequence grid edges and misread them as a tight, decisive interval.
+  const tinyNoisePlan = { question: "Does X help?", aLabel: "Without X", bLabel: "With X",
+    outcome: { name: "Score", unit: "pts", better: "higher", resolution: 1 },
+    mme: 0.5, daySd: 0.1, periodDays: 2, blocks: 4, start: "2026-10-05" };
+  let e = await createExperiment(tinyNoisePlan);
+  for (const per of schedule(e)) {
+    if (per.block > 1) continue; // only the first 2 of the 4 planned blocks are logged
+    const value = per.arm === "A" ? 0 : 1; // a large, consistent-looking B − A difference
+    for (const iso of daysIn(per)) e = logValue(e, iso, value);
+  }
+  const a = analyze(e, "2026-10-20");
+  assert.equal(a.completeBlocks, 2);
+  assert.notEqual(a.verdict.key, "meaningful-benefit", `2 blocks should not be decisive, got ${JSON.stringify(a.cs)}`);
+  assert.notEqual(a.verdict.key, "meaningful-harm", `2 blocks should not be decisive, got ${JSON.stringify(a.cs)}`);
+  assert.ok(!Number.isFinite(a.cs.lower) || !Number.isFinite(a.cs.upper), `interval must stay open, got ${JSON.stringify(a.cs)}`);
 });
 
 test("privacy by architecture: no network APIs in the app, and the CSP forbids connections", () => {
