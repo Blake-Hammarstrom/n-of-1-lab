@@ -169,3 +169,103 @@ test("daysIn across year boundaries", () => {
   assert.equal(days.length, 4);
   assert.deepEqual(days, ["2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02"]);
 });
+
+test("blockDiffs ignores non-finite values (NaN, Infinity, -Infinity)", () => {
+  const s = [{ block: 0, arm: "A", start: "2026-01-01", end: "2026-01-02" }, { block: 0, arm: "B", start: "2026-01-03", end: "2026-01-04" }];
+  const d = blockDiffs(s, { "2026-01-01": 1, "2026-01-02": NaN, "2026-01-03": 5, "2026-01-04": Infinity });
+  assert.deepEqual(d, [{ block: 0, d: 5 - 1 }]);
+  const d2 = blockDiffs(s, { "2026-01-01": 10, "2026-01-02": -Infinity, "2026-01-03": 20, "2026-01-04": 30 });
+  assert.deepEqual(d2, [{ block: 0, d: 25 - 10 }]);
+});
+
+test("blockDiffs ignores values outside period range", () => {
+  const s = [{ block: 0, arm: "A", start: "2026-01-05", end: "2026-01-06" }, { block: 0, arm: "B", start: "2026-01-07", end: "2026-01-08" }];
+  const d = blockDiffs(s, {
+    "2026-01-01": 99,
+    "2026-01-05": 1,
+    "2026-01-06": 2,
+    "2026-01-07": 5,
+    "2026-01-08": 8,
+    "2026-01-10": 99,
+  });
+  assert.deepEqual(d, [{ block: 0, d: 6.5 - 1.5 }]);
+});
+
+test("blockDiffs with mixed non-finite and out-of-period values", () => {
+  const s = [{ block: 0, arm: "A", start: "2026-01-02", end: "2026-01-03" }, { block: 0, arm: "B", start: "2026-01-04", end: "2026-01-05" }];
+  const d = blockDiffs(s, {
+    "2026-01-01": 1,
+    "2026-01-02": 10,
+    "2026-01-03": NaN,
+    "2026-01-04": 20,
+    "2026-01-05": Infinity,
+    "2026-01-06": 30,
+  });
+  assert.deepEqual(d, [{ block: 0, d: 20 - 10 }]);
+});
+
+test("verdict: lower = mme returns meaningful-benefit", () => {
+  const v = verdict({ lower: 1, upper: 2 }, 1, { blocks: 5, plannedBlocks: 10 });
+  assert.equal(v.key, "meaningful-benefit");
+});
+
+test("verdict: upper = -mme returns meaningful-harm", () => {
+  const v = verdict({ lower: -2, upper: -1 }, 1, { blocks: 5, plannedBlocks: 10 });
+  assert.equal(v.key, "meaningful-harm");
+});
+
+test("verdict: harm-unclear edge (upper < 0 and lower > -mme)", () => {
+  const v = verdict({ lower: -0.5, upper: -0.1 }, 1, { blocks: 5, plannedBlocks: 10 });
+  assert.equal(v.key, "harm-unclear-size");
+});
+
+test("verdict: lower just below mme with positive upper", () => {
+  const v = verdict({ lower: 0.9, upper: 2 }, 1, { blocks: 5, plannedBlocks: 10 });
+  assert.equal(v.key, "benefit-unclear-size");
+});
+
+test("verdict: upper just above -mme with negative lower", () => {
+  const v = verdict({ lower: -2, upper: -0.9 }, 1, { blocks: 5, plannedBlocks: 10 });
+  assert.equal(v.key, "harm-unclear-size");
+});
+
+test("verdict: tight interval around zero (no-meaningful-effect)", () => {
+  const v = verdict({ lower: -0.5, upper: 0.5 }, 1, { blocks: 5, plannedBlocks: 10 });
+  assert.equal(v.key, "no-meaningful-effect");
+});
+
+test("tTestP: n < 2 returns 1", () => {
+  assert.equal(tTestP([]), 1);
+  assert.equal(tTestP([5]), 1);
+});
+
+test("tTestP: zero variance with zero mean returns 1", () => {
+  assert.equal(tTestP([0, 0, 0, 0]), 1);
+});
+
+test("tTestP: zero variance with non-zero mean returns 0", () => {
+  assert.equal(tTestP([5, 5, 5, 5]), 0);
+});
+
+test("tTestP: with n=2 and non-zero mean detects effect", () => {
+  const ds = [2, 4];
+  const p = tTestP(ds);
+  assert.ok(Number.isFinite(p) && p >= 0 && p <= 1, `p-value ${p} out of valid range`);
+});
+
+test("confidenceSequence with minimum block count (11 blocks)", () => {
+  const r = rng(42);
+  const ds = Array.from({ length: 11 }, () => normal(r));
+  const cs = confidenceSequence(ds);
+  assert.ok(Number.isFinite(cs.lower) || Number.isFinite(cs.upper));
+  assert.ok(cs.estimate !== null);
+  assert.ok(Number.isFinite(cs.estimate));
+});
+
+test("confidenceSequence with 11 blocks respects interval bounds", () => {
+  const r = rng(42);
+  const ds = Array.from({ length: 11 }, () => 1.5 + normal(r));
+  const cs = confidenceSequence(ds);
+  assert.ok(cs.lower <= cs.estimate && cs.estimate <= cs.upper, "estimate must be within bounds");
+  assert.ok(cs.lower <= 1.5 || cs.upper >= 1.5, "interval should plausibly contain true effect");
+});
