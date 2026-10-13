@@ -63,7 +63,12 @@ export function confidenceSequence(ds, { alpha = 0.05, scale0 = 1, grid = 241 } 
   }
   const estimate = ds.reduce((s, d) => s + d, 0) / ds.length;
   if (!kept.length) return { lower: estimate, upper: estimate, estimate }; // numerically degenerate; collapse
-  return { lower: kept[0], upper: kept[kept.length - 1], estimate };
+  let lower = kept[0], upper = kept[kept.length - 1];
+  // Unrejected grid edges are not evidence; replace with infinity
+  const eps = (b - a) / (grid - 1) * 0.5; // half a grid step
+  if (Math.abs(lower - a) < eps) lower = -Infinity;
+  if (Math.abs(upper - b) < eps) upper = Infinity;
+  return { lower, upper, estimate };
 }
 
 /**
