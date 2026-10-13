@@ -57,17 +57,23 @@ export function confidenceSequence(ds, { alpha = 0.05, scale0 = 1, grid = 241 } 
   if (ds.length < 2) return { lower: -Infinity, upper: Infinity, estimate: ds.length ? ds[0] : null };
   const lo = Math.min(...ds), hi = Math.max(...ds), pad = Math.max(hi - lo, scale0) * 1.5;
   const a = lo - pad, b = hi + pad, kept = [];
+  let lowEdgeUnrejected = false, highEdgeUnrejected = false;
   for (let g = 0; g < grid; g++) {
     const delta = a + ((b - a) * g) / (grid - 1);
-    if (!bet(ds, delta, { alpha, scale0 }).rejected) kept.push(delta);
+    if (!bet(ds, delta, { alpha, scale0 }).rejected) {
+      kept.push(delta);
+      if (g === 0) lowEdgeUnrejected = true;
+      if (g === grid - 1) highEdgeUnrejected = true;
+    }
   }
   const estimate = ds.reduce((s, d) => s + d, 0) / ds.length;
   if (!kept.length) return { lower: estimate, upper: estimate, estimate }; // numerically degenerate; collapse
   let lower = kept[0], upper = kept[kept.length - 1];
-  // Unrejected grid edges are not evidence; replace with infinity
-  const eps = (b - a) / (grid - 1) * 0.5; // half a grid step
-  if (Math.abs(lower - a) < eps) lower = -Infinity;
-  if (Math.abs(upper - b) < eps) upper = Infinity;
+  // The grid only spans [a, b], an arbitrary padding window, not a claim about where the
+  // test would actually reject. If the betting test still can't reject the window's own
+  // edge, that edge is a search-limit artifact, not evidence of a bound: open it to infinity.
+  if (lowEdgeUnrejected) lower = -Infinity;
+  if (highEdgeUnrejected) upper = Infinity;
   return { lower, upper, estimate };
 }
 

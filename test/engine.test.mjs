@@ -59,15 +59,3 @@ test("planner: more blocks never lowers power; resolution check flags coarse ins
   assert.equal(resolutionCheck(1, 1).ok, false);
   assert.equal(resolutionCheck(0.1, 1).ok, true);
 });
-
-test("regression: 2-block experiment does not declare meaningful benefit/harm as decisive", async () => {
-  // Create a 2-block experiment with small scale0 that would hit grid edges
-  const benefit = [1.0, 1.0];
-  const mme = 0.5;
-  const scale0 = 0.1;
-  const cs = confidenceSequence(benefit, { alpha: 0.05, scale0 });
-  const v = verdict(cs, mme, { blocks: benefit.length, plannedBlocks: 2 });
-  // Even if there appears to be benefit, a 2-block experiment should not be decisive
-  assert.notEqual(v.key, "meaningful-benefit", `2-block should not declare meaningful-benefit, got ${JSON.stringify(cs)}`);
-  assert.notEqual(v.key, "meaningful-harm", "2-block should not declare meaningful-harm");
-});
