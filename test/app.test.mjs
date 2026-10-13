@@ -19,6 +19,12 @@ test("invalid plans are refused with readable reasons", async () => {
   await assert.rejects(createExperiment({ ...plan, bLabel: "Without X" }), /different names/);
 });
 
+test("regression: fractional block counts must be rejected", async () => {
+  await assert.rejects(createExperiment({ ...plan, blocks: 4.5 }), /Plan 4 to 60 blocks/);
+  await assert.rejects(createExperiment({ ...plan, blocks: 8.1 }), /Plan 4 to 60 blocks/);
+  await assert.rejects(createExperiment({ ...plan, blocks: 10.9 }), /Plan 4 to 60 blocks/);
+});
+
 test("logging respects the schedule and the running state", async () => {
   let e = await createExperiment(plan);
   e = logValue(e, "2026-10-05", 7);

@@ -26,7 +26,7 @@ export function validateProtocol(p) {
   if (!(p.mme > 0)) errors.push("Set the smallest change that would matter to you (greater than 0).");
   if (!(p.daySd > 0)) errors.push("Estimate how much the outcome varies day to day (greater than 0).");
   if (!(p.periodDays >= 1 && p.periodDays <= 14)) errors.push("Periods must be 1 to 14 days.");
-  if (!(p.blocks >= 4 && p.blocks <= 60)) errors.push("Plan 4 to 60 blocks.");
+  if (!Number.isInteger(p.blocks) || !(p.blocks >= 4 && p.blocks <= 60)) errors.push("Plan 4 to 60 blocks.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(p.start || "")) errors.push("Pick a start date.");
   return errors;
 }
