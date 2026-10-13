@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """Step 4 verification gate. Stdlib only; installed into each pilot repo as .github/sb-gate/gate.py.
 
-  gate.py static     --base SHA --head SHA [--title T]   # never executes PR code (runs from pull_request_target)
-  gate.py regression --base SHA --head SHA [--title T]   # fix PRs: head's tests must FAIL on base source, PASS on head
+  gate.py static     --base SHA --head SHA [--head-ref REF --same-repo true|false]   # never executes PR code
+  gate.py regression --base SHA --head SHA [--head-ref REF --same-repo true|false]   # runs PR tests (pull_request)
+
+Level 2 (Step 6): a PR whose head ref is `task/<class>/<task-id>` is held to that task class's rules (allowed paths,
+required evidence, size, exclusions). The class comes ONLY from the head ref, which the supervisor names from the
+authoritative task record; the PR title/body/self-report are never read. Malformed or unknown task refs fail closed.
 
 Config is read from the BASE commit (.github/sb-gate.json), never from the PR. Exit 0 = pass, 1 = violations, 2 = gate error.
 Every failure is fail-closed: a git error, an unparseable config or an unknown file mode is a violation, not a pass.
@@ -20,7 +24,10 @@ DEFAULT = {
     "max_files": 25,
     "max_lines": 800,
     "test_cmd": "npm test",
+    "taskClasses": {},                                   # Level 2 classes (generated from the owner's policy)
+    "level2Excluded": {"paths": [], "content": []},
 }
+TASK_REF = re.compile(r"task/([a-z0-9-]{1,40})/(t-[0-9a-f]{16})")
 SECRET = re.compile(r"(gh[opsu]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9_-]{20,}"
                     r"|xox[abpr]-[A-Za-z0-9-]{10,}|rnd_[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)")
 SKIP = re.compile(r"\.(skip|only|todo)\b|\b(skip|todo|only)\s*:\s*(true|['\"`])|pytest\.mark\.(skip|xfail)|pytest\.skip\("
@@ -74,7 +81,7 @@ def config(repo, base):
     # repo config may only ADD protected/test patterns, never remove the defaults
     for k in ("protected", "tests"):
         cfg[k] = DEFAULT[k] + list(loaded.get(k, []))
-    for k in ("max_files", "max_lines", "test_cmd"):
+    for k in ("max_files", "max_lines", "test_cmd", "taskClasses", "level2Excluded"):
         if k in loaded:
             cfg[k] = loaded[k]
     return cfg
@@ -129,9 +136,62 @@ def diff_lines(repo, base, head):
     return add, rem
 
 
-def static(repo, base, head, title=""):
+def task_class(cfg, head_ref, same_repo):
+    """(class name or None, violations). Only `task/...` refs are Level 2 tasks; for them, anything off-spec fails."""
+    if not (head_ref or "").startswith("task/"):
+        return None, []
+    m = TASK_REF.fullmatch(head_ref)
+    if not m:
+        return None, [f"malformed task ref {head_ref!r}: fail closed"]
+    if not same_repo:
+        return None, [f"task ref {head_ref!r} from another repository: fail closed"]
+    if m.group(1) not in cfg["taskClasses"]:
+        return None, [f"unknown task class {m.group(1)!r}: fail closed"]
+    return m.group(1), []
+
+
+def class_rules(repo, base, head, cfg, cls, ch, add, files, lines):
+    """The task class's boundaries. The class can only restrict what the base gate already allows."""
+    v, spec, excl = [], cfg["taskClasses"][cls], cfg["level2Excluded"]
+    is_test = lambda p: match(p, cfg["tests"])
+    is_doc = lambda p: bool(DOC.search(p))
+    for st, _, _, p in ch:
+        if st == "D":
+            v.append(f"[{cls}] file deleted (destructive changes are excluded from Level 2): {p}")
+        if match(p, excl.get("paths", [])):
+            v.append(f"[{cls}] excluded path: {p}")
+        elif not match(p, spec["allow"]):
+            v.append(f"[{cls}] path outside the class: {p}")
+    content = [re.compile(x) for x in excl.get("content", [])]
+    for p, added in add.items():
+        hit = next((rx.pattern for rx in content for ln in added if rx.search(ln)), None)
+        if hit:
+            v.append(f"[{cls}] security-sensitive content ({hit}) in {p}")
+    if files > spec["maxFiles"]:
+        v.append(f"[{cls}] too many files: {files} > {spec['maxFiles']}")
+    if lines > spec["maxLines"]:
+        v.append(f"[{cls}] too many changed lines: {lines} > {spec['maxLines']}")
+    req = spec.get("requires", {})
+    changed = [p for st, _, _, p in ch if st in "AM"]
+    if req.get("docs") and not any(is_doc(p) for p in changed):
+        v.append(f"[{cls}] no documentation change")
+    if req.get("tests") and not any(is_test(p) for p in changed):
+        v.append(f"[{cls}] no test change")
+    if req.get("src") and not any(not is_test(p) and not is_doc(p) for p in changed):
+        v.append(f"[{cls}] no source change")
+    if req.get("addsTests"):
+        b = count(repo, base, tests_at(repo, base, cfg), DECL)
+        h = count(repo, head, tests_at(repo, head, cfg), DECL)
+        if h <= b:
+            v.append(f"[{cls}] no test added ({b} -> {h} declarations)")
+    return v
+
+
+def static(repo, base, head, head_ref="", same_repo=True):
     v = []
     cfg = config(repo, base)
+    cls, cv = task_class(cfg, head_ref, same_repo)
+    v += cv
     ch = changes(repo, base, head)
     if not ch:
         v.append("empty change: nothing to verify")
@@ -187,18 +247,9 @@ def static(repo, base, head, title=""):
         if CI_SKIP.search(msg):
             v.append("commit message suppresses CI")
             break
-    if needs_regression(ch, cfg, title) and not any(match(p, cfg["tests"]) and st in "AM" for st, _, _, p in ch):
-        v.append("fix without an added or changed test")
+    if cls:
+        v += class_rules(repo, base, head, cfg, cls, ch, add, files, lines)
     return v
-
-
-def is_fix(title):
-    return bool(re.match(r"\s*(fix|bug|hotfix)\b", title or "", re.I))
-
-
-def needs_regression(ch, cfg, title):
-    """A fix needs a regression test unless it only touches docs/reports (a typo fix has no behaviour to reproduce)."""
-    return is_fix(title) and any(not DOC.search(p) and not match(p, cfg["tests"]) for _, _, _, p in ch)
 
 
 def run_tests(repo, rev, overlay_from, test_paths, cmd):
@@ -216,14 +267,18 @@ def run_tests(repo, rev, overlay_from, test_paths, cmd):
         shutil.rmtree(d, ignore_errors=True)
 
 
-def regression(repo, base, head, title=""):
+def regression(repo, base, head, head_ref="", same_repo=True):
+    """Required only when the task CLASS demands it (failsOnBase). The title is never consulted."""
     cfg = config(repo, base)
-    ch = changes(repo, base, head)
-    if not needs_regression(ch, cfg, title):
+    cls, cv = task_class(cfg, head_ref, same_repo)
+    if cv:
+        return cv
+    if not cls or not cfg["taskClasses"][cls].get("requires", {}).get("failsOnBase"):
         return []
+    ch = changes(repo, base, head)
     tp = [p for st, _, _, p in ch if st in "AM" and match(p, cfg["tests"])]
     if not tp:
-        return ["fix without an added or changed test"]
+        return [f"[{cls}] no added or changed test to reproduce the bug / exercise the feature"]
     v = []
     if run_tests(repo, base, head, tp, cfg["test_cmd"]) == 0:
         v.append("new/changed tests pass on base: they don't reproduce the bug")
@@ -238,10 +293,11 @@ def main(argv=None):
     ap.add_argument("--repo", default=".")
     ap.add_argument("--base", required=True)
     ap.add_argument("--head", required=True)
-    ap.add_argument("--title", default="")
+    ap.add_argument("--head-ref", default="")
+    ap.add_argument("--same-repo", default="true", choices=["true", "false"])
     a = ap.parse_args(argv)
     try:
-        v = (static if a.mode == "static" else regression)(a.repo, a.base, a.head, a.title)
+        v = (static if a.mode == "static" else regression)(a.repo, a.base, a.head, a.head_ref, a.same_repo == "true")
     except Exception as e:  # fail closed on anything unexpected
         print(f"GATE ERROR (fail closed): {e}")
         return 2
