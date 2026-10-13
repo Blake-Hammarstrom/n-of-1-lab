@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { makeSchedule, daysIn, periodOn } from "../src/engine/schedule.js";
 import { bet, blockDiffs, confidenceSequence, tTestP, verdict } from "../src/engine/stats.js";
 import { blocksNeeded, power, resolutionCheck } from "../src/engine/planner.js";
-import { normal, rng } from "../src/engine/rng.js";
+import { normal, rng, hashString } from "../src/engine/rng.js";
 
 test("schedule is reproducible from its seed, and each block has one A and one B period", () => {
   const s1 = makeSchedule({ seed: "x", blocks: 10, periodDays: 3, start: "2026-10-05" });
@@ -58,4 +58,114 @@ test("planner: more blocks never lowers power; resolution check flags coarse ins
   assert.ok(blocksNeeded({ mme: 1, daySd: 1, periodDays: 3 }).blocks <= 40);
   assert.equal(resolutionCheck(1, 1).ok, false);
   assert.equal(resolutionCheck(0.1, 1).ok, true);
+});
+
+test("FNV-1a reference values: hashString produces consistent outputs for known inputs", () => {
+  assert.equal(hashString(""), 2166136261); // FNV offset basis
+  assert.equal(hashString("a"), 3826002220);
+  assert.equal(hashString("hello"), 1335831723);
+  assert.equal(hashString("seed1"), 4207405863);
+  assert.equal(hashString("seed2"), 4224183482);
+  assert.equal(typeof hashString("test"), "number");
+  assert.ok(hashString("test") >>> 0 === hashString("test")); // is unsigned 32-bit
+});
+
+test("seed determinism: same seed always produces same schedule, different seeds produce different schedules", () => {
+  const params = { blocks: 5, periodDays: 3, start: "2026-01-01" };
+  const s1a = makeSchedule({ seed: "myseed", ...params });
+  const s1b = makeSchedule({ seed: "myseed", ...params });
+  const s2 = makeSchedule({ seed: "otherseed", ...params });
+  assert.deepEqual(s1a, s1b, "same seed must produce identical schedules");
+  assert.notDeepEqual(s1a, s2, "different seeds must produce different schedules");
+});
+
+test("seed determinism with numeric seeds: integer seeds produce reproducible schedules", () => {
+  const params = { blocks: 4, periodDays: 2, start: "2026-02-15" };
+  const s1 = makeSchedule({ seed: 12345, ...params });
+  const s2 = makeSchedule({ seed: 12345, ...params });
+  const s3 = makeSchedule({ seed: 12346, ...params });
+  assert.deepEqual(s1, s2, "same numeric seed must produce identical schedules");
+  assert.notDeepEqual(s1, s3, "different numeric seeds must produce different schedules");
+});
+
+test("periodOn returns null for dates outside any period", () => {
+  const s = makeSchedule({ seed: "test", blocks: 2, periodDays: 3, start: "2026-01-10" });
+  assert.strictEqual(periodOn(s, "2026-01-09"), null, "date before first period");
+  assert.strictEqual(periodOn(s, "2026-01-22"), null, "date after last period");
+  assert.ok(periodOn(s, "2026-01-10") !== null, "date on first period start");
+});
+
+test("periodOn handles boundary dates correctly", () => {
+  const s = makeSchedule({ seed: "test", blocks: 1, periodDays: 5, start: "2026-03-15" });
+  const period = s[0];
+  assert.strictEqual(periodOn(s, period.start), period, "start date is in period");
+  assert.strictEqual(periodOn(s, period.end), period, "end date is in period");
+  const dayBefore = new Date(new Date(period.start + "T00:00:00Z").getTime() - 86400000).toISOString().slice(0, 10);
+  assert.strictEqual(periodOn(s, dayBefore), null, "day before start is not in period");
+});
+
+test("schedule contiguity: periods form continuous sequence across days", () => {
+  const s = makeSchedule({ seed: "test", blocks: 3, periodDays: 4, start: "2026-03-15" });
+  for (let i = 0; i < s.length - 1; i++) {
+    const curr = s[i];
+    const next = s[i + 1];
+    const currEnd = new Date(curr.end + "T00:00:00Z").getTime();
+    const nextStart = new Date(next.start + "T00:00:00Z").getTime();
+    assert.equal(currEnd + 86400000, nextStart, `periods ${i} and ${i + 1} must be contiguous`);
+  }
+});
+
+test("schedule contiguity across month boundaries", () => {
+  const s = makeSchedule({ seed: "boundary", blocks: 2, periodDays: 15, start: "2026-01-20" });
+  const periods = s.map((p) => ({ start: p.start, end: p.end }));
+  for (let i = 0; i < periods.length - 1; i++) {
+    const curr = new Date(periods[i].end + "T00:00:00Z").getTime();
+    const next = new Date(periods[i + 1].start + "T00:00:00Z").getTime();
+    assert.equal(next - curr, 86400000, `one day gap between periods at index ${i}`);
+  }
+});
+
+test("schedule contiguity across year boundaries", () => {
+  const s = makeSchedule({ seed: "newyear", blocks: 2, periodDays: 20, start: "2026-12-15" });
+  const last = new Date(s[0].end + "T00:00:00Z").getTime();
+  const first = new Date(s[1].start + "T00:00:00Z").getTime();
+  assert.equal(first - last, 86400000, "schedule must be contiguous even crossing year boundary");
+});
+
+test("daysIn returns correct number of days for 7-day period", () => {
+  const period = { block: 0, arm: "A", start: "2026-04-10", end: "2026-04-16" };
+  const days = daysIn(period);
+  assert.equal(days.length, 7, "7-day period must have 7 days");
+  assert.equal(days[0], "2026-04-10");
+  assert.equal(days[6], "2026-04-16");
+});
+
+test("daysIn returns correct sequence of days for various period lengths", () => {
+  for (const len of [1, 3, 7, 14]) {
+    const end = new Date(new Date("2026-05-01T00:00:00Z").getTime() + (len - 1) * 86400000).toISOString().slice(0, 10);
+    const period = { block: 0, arm: "A", start: "2026-05-01", end };
+    const days = daysIn(period);
+    assert.equal(days.length, len, `${len}-day period must return ${len} days`);
+    assert.equal(days[0], "2026-05-01");
+    assert.equal(days[len - 1], end);
+    for (let i = 1; i < days.length; i++) {
+      const prev = new Date(days[i - 1] + "T00:00:00Z").getTime();
+      const curr = new Date(days[i] + "T00:00:00Z").getTime();
+      assert.equal(curr - prev, 86400000, `consecutive days must be 1 day apart at index ${i}`);
+    }
+  }
+});
+
+test("daysIn across month boundaries", () => {
+  const period = { block: 0, arm: "A", start: "2026-04-29", end: "2026-05-02" };
+  const days = daysIn(period);
+  assert.equal(days.length, 4);
+  assert.deepEqual(days, ["2026-04-29", "2026-04-30", "2026-05-01", "2026-05-02"]);
+});
+
+test("daysIn across year boundaries", () => {
+  const period = { block: 0, arm: "A", start: "2026-12-30", end: "2027-01-02" };
+  const days = daysIn(period);
+  assert.equal(days.length, 4);
+  assert.deepEqual(days, ["2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02"]);
 });
