@@ -129,6 +129,28 @@ test("canonical: hash independence for nested objects with different key orders"
   assert.equal(canonical(p1), canonical(p2));
 });
 
+test("protocol hash: createExperiment's prereg.hash is independent of input key order", async () => {
+  const now = new Date("2026-10-01T00:00:00Z");
+  const reordered = { start: plan.start, blocks: plan.blocks, periodDays: plan.periodDays, daySd: plan.daySd, mme: plan.mme,
+    outcome: { resolution: 1, better: "higher", unit: "pts", name: "Score" }, bLabel: plan.bLabel, aLabel: plan.aLabel, question: plan.question, seed: "fixed" };
+  const ordered = { ...plan, seed: "fixed" };
+  const e1 = await createExperiment(ordered, now);
+  const e2 = await createExperiment(reordered, now);
+  assert.match(e1.prereg.hash, /^[0-9a-f]{64}$/);
+  assert.equal(e1.prereg.hash, e2.prereg.hash);
+});
+
+test("protocol hash: verifyPrereg accepts a stored protocol whose keys were reordered (e.g. after JSON round-trip)", async () => {
+  const e = await createExperiment(plan);
+  const p = e.protocol;
+  const reorderedProtocol = { seed: p.seed, start: p.start, alpha: p.alpha, blocks: p.blocks, periodDays: p.periodDays, daySd: p.daySd, mme: p.mme,
+    outcome: { resolution: p.outcome.resolution, better: p.outcome.better, unit: p.outcome.unit, name: p.outcome.name },
+    bLabel: p.bLabel, aLabel: p.aLabel, question: p.question };
+  assert.notDeepEqual(Object.keys(reorderedProtocol), Object.keys(p));
+  assert.equal(await verifyPrereg({ ...e, protocol: reorderedProtocol }), true);
+  assert.equal(await verifyPrereg({ ...e, protocol: { ...reorderedProtocol, blocks: p.blocks + 1 } }), false);
+});
+
 test("canonical: arrays maintain order (not sorted)", () => {
   const arr1 = [1, 2, 3];
   const arr2 = [3, 2, 1];
