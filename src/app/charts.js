@@ -5,32 +5,38 @@ const fmt = (v) => (Math.abs(v) >= 10 ? v.toFixed(0) : Math.abs(v) >= 1 ? v.toFi
 /** The answer: the effect interval against the "too small to matter" zone. */
 export function intervalChart(cs, mme, unit) {
   const H = 120, pad = 28;
-  if (!Number.isFinite(cs.lower)) return `<div class="chart-empty">The interval appears after two complete blocks.</div>`;
-  const lo = Math.min(cs.lower, -mme) , hi = Math.max(cs.upper, mme), span = (hi - lo) * 1.25 || 1, mid = (hi + lo) / 2;
-  const a = mid - span / 2, b = mid + span / 2, x = (v) => pad + ((v - a) / (b - a)) * (W - 2 * pad);
-  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Effect interval from ${fmt(cs.lower)} to ${fmt(cs.upper)} ${unit}">
+  const openLo = !Number.isFinite(cs.lower), openHi = !Number.isFinite(cs.upper);
+  if (openLo && openHi) return `<div class="chart-empty">The interval appears after two complete blocks.</div>`;
+  // an open side has no number: size the range from the finite side, the zone, and the estimate
+  const est = Number.isFinite(cs.estimate) && (openLo || openHi) ? [cs.estimate] : [];
+  const lo = Math.min(openLo ? -mme : cs.lower, -mme, ...est), hi = Math.max(openHi ? mme : cs.upper, mme, ...est), span = (hi - lo) * 1.25 || 1, mid = (hi + lo) / 2;
+  const a = mid - span / 2, b = mid + span / 2, x0 = (v) => pad + ((v - a) / (b - a)) * (W - 2 * pad);
+  const x = (v) => (v === -Infinity ? pad : v === Infinity ? W - pad : x0(v));
+  const NONE = "no limit yet", loText = openLo ? NONE : fmt(cs.lower), hiText = openHi ? NONE : fmt(cs.upper);
+  const loAnchor = openLo ? "start" : "middle", hiAnchor = openHi ? "end" : "middle";
+  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Effect interval from ${loText} to ${hiText} ${unit}">
   <rect x="${x(-mme)}" y="18" width="${x(mme) - x(-mme)}" height="62" class="zone"/>
   <text x="${(x(-mme) + x(mme)) / 2}" y="14" class="zone-label" text-anchor="middle">too small to matter (±${fmt(mme)})</text>
   <line x1="${x(0)}" x2="${x(0)}" y1="18" y2="80" class="zero"/>
   <line x1="${x(cs.lower)}" x2="${x(cs.upper)}" y1="49" y2="49" class="ci"/>
-  <line x1="${x(cs.lower)}" x2="${x(cs.lower)}" y1="40" y2="58" class="ci"/>
-  <line x1="${x(cs.upper)}" x2="${x(cs.upper)}" y1="40" y2="58" class="ci"/>
+  ${openLo ? "" : `<line x1="${x(cs.lower)}" x2="${x(cs.lower)}" y1="40" y2="58" class="ci"/>`}
+  ${openHi ? "" : `<line x1="${x(cs.upper)}" x2="${x(cs.upper)}" y1="40" y2="58" class="ci"/>`}
   <circle cx="${x(cs.estimate)}" cy="49" r="6" class="est"/>
   <text x="${pad}" y="104" class="axis">← worse</text>
   <text x="${W - pad}" y="104" class="axis" text-anchor="end">better →</text>
-  <text x="${x(cs.lower)}" y="74" class="val" text-anchor="middle">${fmt(cs.lower)}</text>
-  <text x="${x(cs.upper)}" y="74" class="val" text-anchor="middle">${fmt(cs.upper)}</text>
+  <text x="${x(cs.lower)}" y="74" class="val" text-anchor="${loAnchor}">${loText}</text>
+  <text x="${x(cs.upper)}" y="74" class="val" text-anchor="${hiAnchor}">${hiText}</text>
   <text x="${x(0)}" y="96" class="axis" text-anchor="middle">0</text>
 </svg>`;
 }
 
 /** Evidence over time: the interval narrowing block by block (safe to watch: it's anytime-valid). */
 export function historyChart(history, mme) {
-  const pts = history.filter((h) => Number.isFinite(h.lower));
+  const pts = history.filter((h) => Number.isFinite(h.lower) || Number.isFinite(h.upper));
   if (pts.length < 2) return `<div class="chart-empty">Evidence over time appears after three complete blocks.</div>`;
   const H = 180, pl = 36, pr = 12, pt = 10, pb = 26;
   // scale to the meaningful range (the first blocks' very wide intervals are clamped at the edge)
-  const last = pts[pts.length - 1], R = Math.max(3 * mme, Math.abs(last.lower) * 1.4, Math.abs(last.upper) * 1.4);
+  const last = pts[pts.length - 1], R = Math.max(3 * mme, ...[last.lower, last.upper].filter(Number.isFinite).map((v) => Math.abs(v) * 1.4));
   const y0 = -R, y1 = R, n = last.blocks;
   const x = (b) => pl + ((b - pts[0].blocks) / Math.max(1, n - pts[0].blocks)) * (W - pl - pr);
   const y = (v) => pt + (1 - (Math.max(y0, Math.min(y1, v)) - y0) / (y1 - y0 || 1)) * (H - pt - pb);
