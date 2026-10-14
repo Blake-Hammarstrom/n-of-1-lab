@@ -3,6 +3,7 @@
 **Does it actually work for you?** Run randomized, pre-registered experiments on yourself, privately, with an answer that's safe to check every day.
 
 Project 02 of Blake's Second Brain. Spec: `docs/SPEC.md`.
+Reading a result screen: `docs/RESULTS.md`.
 
 ## How it works
 1. **Plan:** one change, one outcome, and the smallest difference that would matter. The planner sizes the trial by simulation.
