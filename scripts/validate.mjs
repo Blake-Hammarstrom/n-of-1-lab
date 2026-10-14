@@ -97,3 +97,5 @@ writeFileSync(new URL("../reports/validation.md", import.meta.url), [
   ...planner.map((x) => `| ${x.id} | ${x.recommendedBlocks} | ${pct(x.plannerPower)} | ${pct(x.simulatedPower)} | ${pct(x.gap)} |`), "",
 ].join("\n"));
 console.log(out.criteria, `${out.seconds}s`);
+
+// fewer sims
