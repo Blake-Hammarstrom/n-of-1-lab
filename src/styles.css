@@ -121,3 +121,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
   .private { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.table-wrap { overflow-x: auto; }
+.blocks-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.blocks-table th, .blocks-table td { padding: 4px 8px; text-align: right; }
+.blocks-table th:first-child, .blocks-table td:first-child { text-align: left; }
