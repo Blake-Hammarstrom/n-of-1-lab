@@ -1,5 +1,5 @@
 // N-of-1 Lab UI. Local-first: experiments live in this browser's storage and never leave the device.
-import { analyze, blockTable, createExperiment, entriesCSV, exportData, importData, logValue, scheduleICS, verifyPrereg } from "./model.js";
+import { analyze, blockTable, createExperiment, entriesCSV, exportData, importData, logValue, resultSummary, scheduleICS, verifyPrereg } from "./model.js";
 import { minBlocksForInterval } from "../engine/stats.js";
 import { blocksNeeded, power, resolutionCheck } from "../engine/planner.js";
 import { toISO } from "../engine/schedule.js";
@@ -202,7 +202,7 @@ async function experiment(exp, { readOnly = false } = {}) {
     ${intact ? `<span class="ok">plan unchanged since locking</span>` : `<span class="bad">plan was edited after locking</span>`}</p>
     <p class="muted small">Planned: ${p.blocks} blocks, smallest meaningful change ${p.mme}, expected daily spread ${p.daySd}, α = ${p.alpha}. Analysis: each period is averaged first, so days aren't treated as independent.</p>
   </section>
-  ${readOnly ? "" : `<div class="danger"><button class="btn ghost" id="csv">Export CSV</button><button class="btn ghost" id="ics">Export calendar</button><button class="btn ghost" id="stop" ${exp.status !== "running" ? "disabled" : ""}>Stop experiment</button><button class="btn ghost" id="del">Delete</button></div>`}`;
+  ${readOnly ? "" : `<div class="danger"><button class="btn ghost" id="csv">Export CSV</button><button class="btn ghost" id="ics">Export calendar</button><button class="btn ghost" id="summary">Copy summary</button><button class="btn ghost" id="stop" ${exp.status !== "running" ? "disabled" : ""}>Stop experiment</button><button class="btn ghost" id="del">Delete</button></div>`}`;
   if (readOnly) return;
   const lf = $("#log");
   if (lf) lf.onsubmit = (ev) => {
@@ -223,6 +223,14 @@ async function experiment(exp, { readOnly = false } = {}) {
     const url = URL.createObjectURL(new Blob([scheduleICS(exp)], { type: "text/calendar" }));
     const a = Object.assign(document.createElement("a"), { href: url, download: `${exp.id}.ics` });
     a.click(); URL.revokeObjectURL(url);
+  };
+  $("#summary").onclick = async () => {
+    const text = resultSummary(exp, t);
+    try { await navigator.clipboard.writeText(text); toast("Summary copied."); } catch {
+      const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+      const a = Object.assign(document.createElement("a"), { href: url, download: `${exp.id}-summary.txt` });
+      a.click(); URL.revokeObjectURL(url);
+    }
   };
   $("#stop").onclick = () => {
     const why = prompt(a.decisive ? "Stop now? The result is decisive. Note why (optional):" : "Stop before the evidence is decisive? This is recorded. Why?");

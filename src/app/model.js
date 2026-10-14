@@ -117,6 +117,29 @@ export function blockTable(exp) {
   return rows;
 }
 
+/** Plain-text record of the plan and current result, for pasting into notes. Ten lines, each ending in a newline. */
+export function resultSummary(exp, todayIso = toISO(Date.now())) {
+  const p = protocolOf(exp.protocol), a = analyze(exp, todayIso), o = p.outcome;
+  const unit = o.unit ? ` ${o.unit}` : "";
+  const lo = Number.isFinite(a.cs.lower), hi = Number.isFinite(a.cs.upper);
+  const interval = !lo && !hi ? "not available yet"
+    : `${lo ? a.cs.lower.toFixed(2) : "no limit"} to ${hi ? a.cs.upper.toFixed(2) : "no limit"}${unit}`;
+  const status = exp.status === "stopped" && exp.stop
+    ? `stopped ${String(exp.stop.at).slice(0, 10)}${exp.stop.reason ? ` (${exp.stop.reason})` : ""}` : exp.status;
+  return [
+    `Question: ${p.question}`,
+    `A: ${p.aLabel}`,
+    `B: ${p.bLabel}`,
+    `Outcome: ${o.name}${o.unit ? ` (${o.unit})` : ""}, ${o.better} is better; smallest meaningful change ${p.mme}`,
+    `Design: ${p.blocks} blocks of two ${p.periodDays}-day periods from ${p.start}`,
+    `Progress: ${a.completeBlocks} of ${a.plannedBlocks} blocks complete; ${a.loggedDays} of ${a.pastDays} days logged; followed ${a.adherence == null ? "n/a" : `${Math.round(a.adherence * 100)}%`}`,
+    `Verdict: ${a.verdict.label}`,
+    `Effect of B vs A (positive = better), 95% anytime-valid interval: ${interval}`,
+    `Pre-registration: locked ${exp.prereg.lockedAt.slice(0, 16).replace("T", " ")} UTC, fingerprint ${exp.prereg.hash.slice(0, 16)}`,
+    `Status: ${status}`,
+  ].map((l) => `${l}\n`).join("");
+}
+
 const CSV_HEADER = "date,block,condition,value,followed,note";
 
 function csvCell(v, guard = false) {
