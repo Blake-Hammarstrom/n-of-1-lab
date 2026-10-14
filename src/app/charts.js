@@ -1,4 +1,5 @@
 // Hand-built SVG charts. Every number shown comes from the experiment's own data.
+import { minBlocksForInterval } from "../engine/stats.js";
 const W = 640;
 const fmt = (v) => (Math.abs(v) >= 10 ? v.toFixed(0) : Math.abs(v) >= 1 ? v.toFixed(1) : v.toFixed(2));
 
@@ -6,7 +7,7 @@ const fmt = (v) => (Math.abs(v) >= 10 ? v.toFixed(0) : Math.abs(v) >= 1 ? v.toFi
 export function intervalChart(cs, mme, unit) {
   const H = 120, pad = 28;
   const openLo = !Number.isFinite(cs.lower), openHi = !Number.isFinite(cs.upper);
-  if (openLo && openHi) return `<div class="chart-empty">The interval appears after two complete blocks.</div>`;
+  if (openLo && openHi) return `<div class="chart-empty">No interval yet: it can appear from block ${minBlocksForInterval()} at the earliest.</div>`;
   // an open side has no number: size the range from the finite side, the zone, and the estimate
   const est = Number.isFinite(cs.estimate) && (openLo || openHi) ? [cs.estimate] : [];
   const lo = Math.min(openLo ? -mme : cs.lower, -mme, ...est), hi = Math.max(openHi ? mme : cs.upper, mme, ...est), span = (hi - lo) * 1.25 || 1, mid = (hi + lo) / 2;
@@ -33,7 +34,7 @@ export function intervalChart(cs, mme, unit) {
 /** Evidence over time: the interval narrowing block by block (safe to watch: it's anytime-valid). */
 export function historyChart(history, mme) {
   const pts = history.filter((h) => Number.isFinite(h.lower) || Number.isFinite(h.upper));
-  if (pts.length < 2) return `<div class="chart-empty">Evidence over time appears after three complete blocks.</div>`;
+  if (pts.length < 2) return `<div class="chart-empty">Evidence over time appears from block ${minBlocksForInterval() + 1} at the earliest.</div>`;
   const H = 180, pl = 36, pr = 12, pt = 10, pb = 26;
   // scale to the meaningful range (the first blocks' very wide intervals are clamped at the edge)
   const last = pts[pts.length - 1], R = Math.max(3 * mme, ...[last.lower, last.upper].filter(Number.isFinite).map((v) => Math.abs(v) * 1.4));

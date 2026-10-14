@@ -1,5 +1,6 @@
 // N-of-1 Lab UI. Local-first: experiments live in this browser's storage and never leave the device.
 import { analyze, blockTable, createExperiment, entriesCSV, exportData, importData, logValue, scheduleICS, verifyPrereg } from "./model.js";
+import { minBlocksForInterval } from "../engine/stats.js";
 import { blocksNeeded, power, resolutionCheck } from "../engine/planner.js";
 import { toISO } from "../engine/schedule.js";
 import { historyChart, intervalChart, timelineChart } from "./charts.js";
@@ -29,7 +30,7 @@ function toast(msg) {
 }
 
 const VERDICT_COPY = {
-  "collecting": "Keep logging. The answer needs at least two complete blocks.",
+  "collecting": `Keep logging. No interval can appear before ${minBlocksForInterval()} complete blocks, and it often takes more.`,
   "keep-going": "Not decisive yet. Keep going: checking every day is safe with this method.",
   "meaningful-benefit": "The whole interval is beyond the smallest change you said would matter. You can stop here.",
   "meaningful-harm": "The whole interval is worse than the smallest change that matters. You can stop here.",

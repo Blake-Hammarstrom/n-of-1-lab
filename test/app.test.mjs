@@ -287,14 +287,14 @@ test("regression: charts handle one-sided confidence intervals", async () => {
   assert.match(down, /<svg/);
   assert.doesNotMatch(down, bad);
   assert.match(down, /from no limit yet to -2\.5 pts/);
-  assert.match(intervalChart({ lower: -Infinity, upper: Infinity }, 0.5, "pts"), /appears after two complete blocks/);
+  assert.match(intervalChart({ lower: -Infinity, upper: Infinity }, 0.5, "pts"), /^<div class="chart-empty">No interval yet: it can appear from block 8 at the earliest\.<\/div>$/);
   const h = historyChart([{ blocks: 2, lower: -3, upper: 4, estimate: 0.5 }, { blocks: 3, lower: -1, upper: 3, estimate: 1 }, { blocks: 4, lower: -0.5, upper: Infinity, estimate: 1.1 }], 0.5);
   assert.match(h, /<svg/);
   assert.doesNotMatch(h, bad);
   const lowOpen = historyChart([{ blocks: 2, lower: -Infinity, upper: -1, estimate: -2 }, { blocks: 3, lower: -Infinity, upper: -1.5, estimate: -2.2 }], 0.5);
   assert.match(lowOpen, /<svg/);
   assert.doesNotMatch(lowOpen, bad);
-  assert.match(historyChart([{ blocks: 2, lower: -Infinity, upper: -1, estimate: -2 }], 0.5), /after three complete blocks/);
+  assert.match(historyChart([{ blocks: 2, lower: -Infinity, upper: -1, estimate: -2 }], 0.5), /^<div class="chart-empty">Evidence over time appears from block 9 at the earliest\.<\/div>$/);
 });
 
 test("finite intervals render unchanged", async () => {

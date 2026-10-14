@@ -15,6 +15,18 @@
 export const CLIP = 1.5;
 export const LAMBDAS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
 
+/**
+ * Fewest complete blocks at which any interval bound can appear. Each block's bet is capped at |x| = 1, so the
+ * best possible wealth after n blocks is the average over ±LAMBDAS of (1 + λ)^n; it must reach 1/alpha (as in bet).
+ */
+export function minBlocksForInterval(alpha = 0.05) {
+  const ls = LAMBDAS.flatMap((l) => [l, -l]);
+  for (let n = 1; n < 10000; n++) {
+    if (ls.reduce((s, l) => s + (1 + l) ** n, 0) / ls.length >= 1 / alpha) return n;
+  }
+  return Infinity;
+}
+
 /** Paired block differences (B − A) for blocks whose two periods both have data. */
 export function blockDiffs(schedule, values) {
   const per = new Map();
