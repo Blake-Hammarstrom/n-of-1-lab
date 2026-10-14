@@ -44,3 +44,9 @@ The pre-registration hash validation covers only the **protocol** — the questi
 If you import an experiment whose ID already exists locally, the imported version **replaces** the local one entirely, including all logged entries. This applies even if the local experiment has more recent data.
 
 Example: if you have a running experiment `e-abc123` locally with 50 logged days, and you import a backup that contains `e-abc123` with only 20 logged days, the local experiment is overwritten and you keep only the 20 imported days.
+
+## CSV export
+
+The experiment screen has an **Export CSV** button that downloads `<experiment id>.csv`. It is separate from the JSON backup and does not change it. Columns: `date,block,condition,value,followed,note`. There is one row per logged day in ascending date order (block is 1-based, `followed` is `yes` or `no`); days outside the schedule are omitted. Cells follow RFC 4180 quoting, and lines end with LF.
+
+Formula guard: a text cell (condition or note) that starts with `=`, `+`, `-` or `@` gets a leading apostrophe so spreadsheets don't evaluate it. Values are never prefixed, so `-2` stays `-2`.

@@ -100,6 +100,27 @@ export function analyze(exp, todayIso = toISO(Date.now())) {
   };
 }
 
+const CSV_HEADER = "date,block,condition,value,followed,note";
+
+function csvCell(v, guard = false) {
+  let s = String(v);
+  if (guard && /^[=+\-@]/.test(s)) s = `'${s}`;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** CSV of the logged days in date order (RFC 4180 quoting, LF line ends). Text cells starting with = + - @ get a leading apostrophe. */
+export function entriesCSV(exp) {
+  const p = exp.protocol, lines = [CSV_HEADER];
+  for (const per of schedule(exp)) {
+    for (const iso of daysIn(per)) {
+      const e = exp.entries[iso];
+      if (!e) continue;
+      lines.push([iso, per.block + 1, csvCell(per.arm === "A" ? p.aLabel : p.bLabel, true), csvCell(e.value), e.followed === false ? "no" : "yes", csvCell(e.note ?? "", true)].map((c, i) => (i === 0 || i === 1 ? String(c) : c)).join(","));
+    }
+  }
+  return lines.join("\n") + "\n";
+}
+
 /** Export/import: one JSON document; import validates shape and the pre-registration hash. */
 export function exportData(experiments) {
   return JSON.stringify({ app: "n-of-1-lab", schema: SCHEMA, exportedAt: new Date().toISOString(), experiments }, null, 2);
