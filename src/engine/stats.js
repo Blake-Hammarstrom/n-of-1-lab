@@ -83,7 +83,8 @@ export function confidenceSequence(ds, { alpha = 0.05, scale0 = 1, grid = 241 } 
  */
 export function verdict(cs, mme, { blocks, plannedBlocks }) {
   const { lower, upper } = cs;
-  if (!Number.isFinite(lower)) return { key: "collecting", label: "Collecting data" };
+  // One-sided intervals ((-Infinity, u) or (l, Infinity)) are informative; only a fully open one is not.
+  if (!Number.isFinite(lower) && !Number.isFinite(upper)) return { key: "collecting", label: "Collecting data" };
   if (lower >= mme) return { key: "meaningful-benefit", label: "Meaningful benefit" };
   if (upper <= -mme) return { key: "meaningful-harm", label: "Meaningfully worse" };
   if (lower > 0) return { key: "benefit-unclear-size", label: "Helps, but maybe not enough to matter" };
