@@ -1,5 +1,5 @@
 // Experiment model, pre-registration and analysis view-model. Pure functions: no DOM, no storage, no network.
-import { makeSchedule, periodOn, daysIn, toISO } from "../engine/schedule.js";
+import { makeSchedule, periodOn, daysIn, toISO, fromISO } from "../engine/schedule.js";
 import { blockDiffs, confidenceSequence, verdict } from "../engine/stats.js";
 import { diffSd } from "../engine/planner.js";
 
@@ -119,6 +119,37 @@ export function entriesCSV(exp) {
     }
   }
   return lines.join("\n") + "\n";
+}
+
+const icsText = (s) => String(s).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r\n|\r|\n/g, "\\n");
+const icsDate = (iso) => iso.replace(/-/g, "");
+
+/** Fold a content line at 75 octets (CRLF + space), never splitting a UTF-8 character. */
+function icsFold(line) {
+  const enc = new TextEncoder(), parts = [];
+  let cur = "", n = 0;
+  for (const ch of line) {
+    const w = enc.encode(ch).length;
+    if (n + w > 75) { parts.push(cur); cur = " "; n = 1; }
+    cur += ch; n += w;
+  }
+  parts.push(cur);
+  return parts.join("\r\n");
+}
+
+/** iCalendar (RFC 5545) with one all-day event per scheduled day, in date order. DTSTAMP comes from prereg.lockedAt so output is deterministic. */
+export function scheduleICS(exp) {
+  const p = exp.protocol, days = [];
+  for (const per of schedule(exp)) for (const iso of daysIn(per)) days.push([iso, per.arm === "A" ? p.aLabel : p.bLabel]);
+  const stamp = new Date(exp.prereg.lockedAt).toISOString().replace(/\.\d{3}Z$/, "Z").replace(/[-:]/g, "");
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//n-of-1-lab//schedule//EN", "CALSCALE:GREGORIAN"];
+  days.forEach(([iso, label], i) => {
+    lines.push("BEGIN:VEVENT", `UID:${exp.id}-${icsDate(iso)}@n-of-1-lab`, `DTSTAMP:${stamp}`,
+      `DTSTART;VALUE=DATE:${icsDate(iso)}`, `DTEND;VALUE=DATE:${icsDate(toISO(fromISO(iso) + 86400000))}`,
+      `SUMMARY:${icsText(label)}: log ${icsText(p.outcome.name)} (day ${i + 1} of ${days.length})`, "END:VEVENT");
+  });
+  lines.push("END:VCALENDAR");
+  return lines.map(icsFold).join("\r\n") + "\r\n";
 }
 
 /** Export/import: one JSON document; import validates shape and the pre-registration hash. */

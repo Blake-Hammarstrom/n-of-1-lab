@@ -1,5 +1,5 @@
 // N-of-1 Lab UI. Local-first: experiments live in this browser's storage and never leave the device.
-import { analyze, createExperiment, entriesCSV, exportData, importData, logValue, verifyPrereg } from "./model.js";
+import { analyze, createExperiment, entriesCSV, exportData, importData, logValue, scheduleICS, verifyPrereg } from "./model.js";
 import { blocksNeeded, power, resolutionCheck } from "../engine/planner.js";
 import { toISO } from "../engine/schedule.js";
 import { historyChart, intervalChart, timelineChart } from "./charts.js";
@@ -194,7 +194,7 @@ async function experiment(exp, { readOnly = false } = {}) {
     ${intact ? `<span class="ok">plan unchanged since locking</span>` : `<span class="bad">plan was edited after locking</span>`}</p>
     <p class="muted small">Planned: ${p.blocks} blocks, smallest meaningful change ${p.mme}, expected daily spread ${p.daySd}, α = ${p.alpha}. Analysis: each period is averaged first, so days aren't treated as independent.</p>
   </section>
-  ${readOnly ? "" : `<div class="danger"><button class="btn ghost" id="csv">Export CSV</button><button class="btn ghost" id="stop" ${exp.status !== "running" ? "disabled" : ""}>Stop experiment</button><button class="btn ghost" id="del">Delete</button></div>`}`;
+  ${readOnly ? "" : `<div class="danger"><button class="btn ghost" id="csv">Export CSV</button><button class="btn ghost" id="ics">Export calendar</button><button class="btn ghost" id="stop" ${exp.status !== "running" ? "disabled" : ""}>Stop experiment</button><button class="btn ghost" id="del">Delete</button></div>`}`;
   if (readOnly) return;
   const lf = $("#log");
   if (lf) lf.onsubmit = (ev) => {
@@ -209,6 +209,11 @@ async function experiment(exp, { readOnly = false } = {}) {
   $("#csv").onclick = () => {
     const url = URL.createObjectURL(new Blob([entriesCSV(exp)], { type: "text/csv" }));
     const a = Object.assign(document.createElement("a"), { href: url, download: `${exp.id}.csv` });
+    a.click(); URL.revokeObjectURL(url);
+  };
+  $("#ics").onclick = () => {
+    const url = URL.createObjectURL(new Blob([scheduleICS(exp)], { type: "text/calendar" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: `${exp.id}.ics` });
     a.click(); URL.revokeObjectURL(url);
   };
   $("#stop").onclick = () => {
