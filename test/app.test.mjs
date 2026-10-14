@@ -50,6 +50,30 @@ test("export → import round-trips, and import rejects a tampered plan", async 
   await assert.rejects(importData(JSON.stringify(tampered)), /edited after it was pre-registered/);
 });
 
+test("regression: import rejects experiments whose entries would crash the app", async () => {
+  const e = await createExperiment(plan);
+  const incomplete = /An experiment in the file is incomplete\./;
+  for (const entries of [null, [], { "2026-10-01": null }, { "2026-10-01": 5 }, { "2026-10-01": [] }]) {
+    await assert.rejects(importData(exportData([{ ...e, entries }])), incomplete, JSON.stringify(entries));
+  }
+  await assert.rejects(importData(exportData([null])), incomplete);
+});
+
+test("import keeps its other checks", async () => {
+  const e = logValue(await createExperiment(plan), "2026-10-05", 4);
+  const notExport = /Not an N-of-1 Lab export\./;
+  const incomplete = /An experiment in the file is incomplete\./;
+  await assert.rejects(importData(JSON.stringify({ app: "other", experiments: [] })), notExport);
+  await assert.rejects(importData(JSON.stringify({ app: "n-of-1-lab", experiments: {} })), notExport);
+  const { protocol, ...noProtocol } = e;
+  const { prereg, ...noPrereg } = e;
+  await assert.rejects(importData(exportData([noProtocol])), incomplete);
+  await assert.rejects(importData(exportData([noPrereg])), incomplete);
+  const edited = { ...e, entries: { ...e.entries, "2026-10-06": { value: 99 } } };
+  assert.deepEqual(await importData(exportData([edited])), [edited]);
+  assert.deepEqual(await importData(exportData([])), []);
+});
+
 test("regression: a 2-block experiment cannot report a decisive meaningful effect through analyze()", async () => {
   // Small daySd and only 2 complete (of 4 planned) blocks are what used to hit the
   // confidence-sequence grid edges and misread them as a tight, decisive interval.
