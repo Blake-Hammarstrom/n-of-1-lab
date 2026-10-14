@@ -108,7 +108,10 @@ export async function importData(text) {
   const doc = JSON.parse(text);
   if (doc.app !== "n-of-1-lab" || !Array.isArray(doc.experiments)) throw new Error("Not an N-of-1 Lab export.");
   for (const e of doc.experiments) {
-    if (!e.protocol || !e.prereg || typeof e.entries !== "object") throw new Error("An experiment in the file is incomplete.");
+    const isObject = (x) => x !== null && typeof x === "object" && !Array.isArray(x);
+    if (!isObject(e) || !e.protocol || !e.prereg || !isObject(e.entries) || !Object.values(e.entries).every(isObject)) {
+      throw new Error("An experiment in the file is incomplete.");
+    }
     if (!(await verifyPrereg(e))) throw new Error(`"${e.protocol.question}" was edited after it was pre-registered.`);
   }
   return doc.experiments;
