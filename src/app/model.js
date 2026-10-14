@@ -100,6 +100,23 @@ export function analyze(exp, todayIso = toISO(Date.now())) {
   };
 }
 
+/** One row per planned block: A and B means/days logged, and diff = B − A (negated when lower is better, so positive is always better). */
+export function blockTable(exp) {
+  const p = exp.protocol, sched = schedule(exp), flip = p.outcome.better === "lower";
+  const stat = (per) => {
+    const vs = daysIn(per).map((iso) => exp.entries[iso]?.value).filter((v) => Number.isFinite(v));
+    return { mean: vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null, days: vs.length };
+  };
+  const rows = Array.from({ length: p.blocks }, (_, i) => ({ block: i + 1, aMean: null, bMean: null, aDays: 0, bDays: 0, diff: null }));
+  for (const per of sched) {
+    const row = rows[per.block], { mean, days } = stat(per);
+    if (!row) continue;
+    if (per.arm === "A") { row.aMean = mean; row.aDays = days; } else { row.bMean = mean; row.bDays = days; }
+  }
+  for (const r of rows) if (r.aMean != null && r.bMean != null) r.diff = flip ? r.aMean - r.bMean : r.bMean - r.aMean;
+  return rows;
+}
+
 const CSV_HEADER = "date,block,condition,value,followed,note";
 
 function csvCell(v, guard = false) {

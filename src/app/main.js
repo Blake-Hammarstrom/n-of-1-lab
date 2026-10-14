@@ -1,5 +1,5 @@
 // N-of-1 Lab UI. Local-first: experiments live in this browser's storage and never leave the device.
-import { analyze, createExperiment, entriesCSV, exportData, importData, logValue, scheduleICS, verifyPrereg } from "./model.js";
+import { analyze, blockTable, createExperiment, entriesCSV, exportData, importData, logValue, scheduleICS, verifyPrereg } from "./model.js";
 import { blocksNeeded, power, resolutionCheck } from "../engine/planner.js";
 import { toISO } from "../engine/schedule.js";
 import { historyChart, intervalChart, timelineChart } from "./charts.js";
@@ -8,6 +8,7 @@ import { sampleExperiment } from "./sample.js";
 const KEY = "n1lab.experiments.v1";
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const num = (v) => (v == null ? "–" : esc(String(Math.round(v * 100) / 100)));
 const today = () => toISO(Date.now() - new Date().getTimezoneOffset() * 60000);
 const app = $("#app");
 
@@ -189,6 +190,12 @@ async function experiment(exp, { readOnly = false } = {}) {
   <section class="card"><h2 class="section">Evidence over time</h2>${historyChart(a.history, p.mme)}<p class="muted small">The shaded band is the interval after each block. Dashed lines are your smallest meaningful change.</p></section>
   <section class="card"><h2 class="section">Every day</h2>${timelineChart(a.days.filter((d) => readOnly || d.iso <= t), exp.entries)}
     <p class="legend"><span class="sw A"></span>${esc(p.aLabel)} <span class="sw B"></span>${esc(p.bLabel)}</p></section>
+  <section class="card"><h2 class="section">Block by block</h2>
+    <div class="table-wrap"><table class="blocks-table">
+      <thead><tr><th>Block</th><th>${esc(p.aLabel)} mean</th><th>${esc(p.aLabel)} days</th><th>${esc(p.bLabel)} mean</th><th>${esc(p.bLabel)} days</th><th>Difference (positive = better${p.outcome.unit ? `, ${esc(p.outcome.unit)}` : ""})</th></tr></thead>
+      <tbody>${blockTable(exp).map((r) => `<tr><td>${r.block}</td><td>${num(r.aMean)}</td><td>${r.aDays}</td><td>${num(r.bMean)}</td><td>${r.bDays}</td><td>${num(r.diff)}</td></tr>`).join("")}</tbody>
+    </table></div>
+    <p class="muted small">These are the per-block differences the interval is built from. Blocks missing a period show a dash.</p></section>
   <section class="card prereg"><h2 class="section">Pre-registration</h2>
     <p>Locked ${esc(exp.prereg.lockedAt.slice(0, 16).replace("T", " "))} UTC · fingerprint <code>${esc(exp.prereg.hash.slice(0, 16))}…</code> ·
     ${intact ? `<span class="ok">plan unchanged since locking</span>` : `<span class="bad">plan was edited after locking</span>`}</p>
