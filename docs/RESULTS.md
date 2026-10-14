@@ -20,7 +20,7 @@ An interval can be open on one or both sides. An open side is shown as unbounded
 
 | # | Label on screen | Rule | Message |
 |---|---|---|---|
-| 1 | Collecting data | Interval is open on both sides | Keep logging. The answer needs at least two complete blocks. |
+| 1 | Collecting data | Interval is open on both sides | Keep logging. No interval can appear before 8 complete blocks, and it often takes more. |
 | 2 | Meaningful benefit | lower ≥ MME | The whole interval is beyond the smallest change you said would matter. You can stop here. |
 | 3 | Meaningfully worse | upper ≤ −MME | The whole interval is worse than the smallest change that matters. You can stop here. |
 | 4 | Helps, but maybe not enough to matter | lower > 0 | It helps, but the interval still includes changes too small to matter. |
@@ -31,7 +31,7 @@ An interval can be open on one or both sides. An open side is shown as unbounded
 
 Notes:
 
-- With fewer than 2 complete blocks the interval is always open on both sides, so the verdict is always Collecting data. It can stay that way longer.
+- With fewer than 8 complete blocks the interval is always open on both sides, so the verdict is always Collecting data. It can stay that way longer.
 - An interval with only one open side still gets a verdict. For example, a lower bound above 0 with no upper bound is "Helps, but maybe not enough to matter".
 
 ## Worked examples
