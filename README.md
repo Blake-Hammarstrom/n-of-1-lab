@@ -5,6 +5,7 @@
 Project 02 of Blake's Second Brain. Spec: `docs/SPEC.md`.
 Reading a result screen: `docs/RESULTS.md`.
 Planning an experiment (the Design form and planner): `docs/PLANNING.md`.
+Logging days (what can be logged, what "followed" means): `docs/LOGGING.md`.
 
 ## How it works
 1. **Plan:** one change, one outcome, and the smallest difference that would matter. The planner sizes the trial by simulation.
