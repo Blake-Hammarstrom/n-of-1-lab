@@ -234,6 +234,43 @@ test("verdict: tight interval around zero (no-meaningful-effect)", () => {
   assert.equal(v.key, "no-meaningful-effect");
 });
 
+test("verdict: one-sided harm (-Infinity, -2.54) is meaningful-harm, not collecting", () => {
+  const v = verdict({ lower: -Infinity, upper: -2.54, estimate: -4.51 }, 0.5, { blocks: 10, plannedBlocks: 40 });
+  assert.equal(v.key, "meaningful-harm");
+});
+
+test("verdict: collecting only when both edges are open", () => {
+  const p = { blocks: 5, plannedBlocks: 10 };
+  assert.equal(verdict({ lower: -Infinity, upper: Infinity }, 1, p).key, "collecting");
+  assert.notEqual(verdict({ lower: -Infinity, upper: 3 }, 1, p).key, "collecting");
+  assert.notEqual(verdict({ lower: -3, upper: Infinity }, 1, p).key, "collecting");
+});
+
+test("verdict: one-sided intervals and their mirrors get counterpart verdicts", () => {
+  const counterpart = {
+    "meaningful-benefit": "meaningful-harm",
+    "benefit-unclear-size": "harm-unclear-size",
+    "keep-going": "keep-going",
+    "inconclusive": "inconclusive",
+  };
+  const cases = [
+    [-Infinity, -2.54, 5, "meaningful-harm"],
+    [-Infinity, -0.5, 5, "harm-unclear-size"],
+    [-Infinity, 0, 5, "keep-going"],
+    [-Infinity, 2, 5, "keep-going"],
+    [-Infinity, 2, 10, "inconclusive"],
+    [-Infinity, 0.3, 10, "inconclusive"],
+  ];
+  for (const [lower, upper, blocks, harmKey] of cases) {
+    const p = { blocks, plannedBlocks: 10 };
+    const a = verdict({ lower, upper }, 1, p).key;
+    const b = verdict({ lower: -upper, upper: -lower }, 1, p).key;
+    assert.equal(a, harmKey);
+    const benefitKey = Object.keys(counterpart).find((k) => counterpart[k] === harmKey) ?? harmKey;
+    assert.equal(b, benefitKey);
+  }
+});
+
 test("tTestP: n < 2 returns 1", () => {
   assert.equal(tTestP([]), 1);
   assert.equal(tTestP([5]), 1);
