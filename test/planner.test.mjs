@@ -21,6 +21,14 @@ test("planner: blocksNeeded returns the first even block count reaching the targ
   assert.equal(blocksNeeded({ ...inp, target: 0.5 }).blocks, 14);
 });
 
+test("planner: blocksNeeded steps by 2 and accepts power exactly at the target", () => {
+  const inp = { mme: 1, daySd: 1, periodDays: 1 };
+  assert.equal(blocksNeeded({ ...inp, target: 0.5 }).blocks, 24);
+  const r = blocksNeeded({ mme: 0.9, daySd: 1, periodDays: 1 });
+  assert.equal(r.blocks, 40);
+  assert.equal(r.power, 0.8);
+});
+
 test("planner: unreachable target returns null blocks and power at maxBlocks", () => {
   const inp = { mme: 0.5, daySd: 1, periodDays: 3 };
   const r = blocksNeeded(inp);
