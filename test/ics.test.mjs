@@ -67,3 +67,8 @@ test("scheduleICS: never splits multi-byte characters", async () => {
   const parts = await checkFold("a" + "é".repeat(120))();
   assert.ok(parts.length > 1);
 });
+
+test("scheduleICS: escapes the outcome name in SUMMARY", async () => {
+  const s = scheduleICS(await make({ outcome: { ...plan.outcome, name: "Sleep, hours; deep" } }));
+  assert.equal(summaries(s)[0], "SUMMARY:Coffee\\, black: log Sleep\\, hours\\; deep (day 1 of 8)");
+});
