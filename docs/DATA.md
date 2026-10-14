@@ -50,3 +50,7 @@ Example: if you have a running experiment `e-abc123` locally with 50 logged days
 The experiment screen has an **Export CSV** button that downloads `<experiment id>.csv`. It is separate from the JSON backup and does not change it. Columns: `date,block,condition,value,followed,note`. There is one row per logged day in ascending date order (block is 1-based, `followed` is `yes` or `no`); days outside the schedule are omitted. Cells follow RFC 4180 quoting, and lines end with LF.
 
 Formula guard: a text cell (condition or note) that starts with `=`, `+`, `-` or `@` gets a leading apostrophe so spreadsheets don't evaluate it. Values are never prefixed, so `-2` stays `-2`.
+
+## Calendar export
+
+The experiment screen has an **Export calendar** button that downloads `<experiment id>.ics` (iCalendar, RFC 5545). It contains one all-day event per scheduled day, in date order, whose summary names that day's condition, e.g. `Coffee\, black: log Focus (day 1 of 8)`. UIDs are stable (`<experiment id>-<YYYYMMDD>@n-of-1-lab`) and DTSTAMP comes from the lock time, so the same experiment always produces the same file and re-importing it updates the events rather than duplicating them. The JSON backup is unchanged.
