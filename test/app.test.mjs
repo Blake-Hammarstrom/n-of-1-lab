@@ -250,3 +250,32 @@ test("logValue: converts note to string before truncation", async () => {
   e = logValue(e, "2026-10-06", 6, true, { toString: () => "a".repeat(300) });
   assert.equal(e.entries["2026-10-06"].note.length, 280);
 });
+
+test("regression: charts handle one-sided confidence intervals", async () => {
+  const { intervalChart, historyChart } = await import("../src/app/charts.js");
+  const bad = /NaN|Infinity/;
+  const up = intervalChart({ lower: -1.71, upper: Infinity, estimate: 1.2 }, 0.5, "pts");
+  assert.doesNotMatch(up, bad);
+  assert.match(up, /<svg/);
+  assert.match(up, /from -1\.7 to no limit yet pts/);
+  assert.match(up, />no limit yet</);
+  const down = intervalChart({ lower: -Infinity, upper: -2.54, estimate: -4.51 }, 0.5, "pts");
+  assert.match(down, /<svg/);
+  assert.doesNotMatch(down, bad);
+  assert.match(down, /from no limit yet to -2\.5 pts/);
+  assert.match(intervalChart({ lower: -Infinity, upper: Infinity }, 0.5, "pts"), /appears after two complete blocks/);
+  const h = historyChart([{ blocks: 2, lower: -3, upper: 4, estimate: 0.5 }, { blocks: 3, lower: -1, upper: 3, estimate: 1 }, { blocks: 4, lower: -0.5, upper: Infinity, estimate: 1.1 }], 0.5);
+  assert.match(h, /<svg/);
+  assert.doesNotMatch(h, bad);
+  const lowOpen = historyChart([{ blocks: 2, lower: -Infinity, upper: -1, estimate: -2 }, { blocks: 3, lower: -Infinity, upper: -1.5, estimate: -2.2 }], 0.5);
+  assert.match(lowOpen, /<svg/);
+  assert.doesNotMatch(lowOpen, bad);
+  assert.match(historyChart([{ blocks: 2, lower: -Infinity, upper: -1, estimate: -2 }], 0.5), /after three complete blocks/);
+});
+
+test("finite intervals render unchanged", async () => {
+  const { intervalChart } = await import("../src/app/charts.js");
+  const out = intervalChart({ lower: -1, upper: 2, estimate: 0.5 }, 0.5, "pts");
+  assert.match(out, /from -1\.0 to 2\.0 pts/);
+  assert.equal(out.match(/class="ci"/g).length, 3);
+});
