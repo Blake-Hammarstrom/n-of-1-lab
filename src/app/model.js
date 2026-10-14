@@ -62,7 +62,8 @@ export async function verifyPrereg(exp) {
 
 export function logValue(exp, iso, value, followed = true, note = "") {
   if (exp.status !== "running") throw new Error("This experiment is no longer running.");
-  const v = Number(value);
+  const blank = value == null || (typeof value === "string" && value.trim() === "");
+  const v = blank ? NaN : Number(value);
   if (!Number.isFinite(v)) throw new Error("Enter a number.");
   const sched = schedule(exp);
   if (!periodOn(sched, iso)) throw new Error("That day isn't part of the experiment.");
