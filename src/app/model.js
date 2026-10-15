@@ -72,6 +72,22 @@ export function logValue(exp, iso, value, followed = true, note = "") {
 
 export const schedule = (exp) => makeSchedule(exp.protocol);
 
+const dayDiff = (a, b) => Math.round((fromISO(b) - fromISO(a)) / 86400000);
+
+/** Where "today" falls in the schedule and when the condition next changes. */
+export function periodStatus(exp, todayIso) {
+  const sched = schedule(exp), first = sched[0], last = sched[sched.length - 1];
+  if (todayIso < first.start) return { phase: "before", startsIn: dayDiff(todayIso, first.start), next: { date: first.start, arm: first.arm } };
+  if (todayIso > last.end) return { phase: "after", ended: last.end };
+  const i = sched.findIndex((p) => p.start <= todayIso && todayIso <= p.end), cur = sched[i];
+  const later = sched.slice(i + 1).find((p) => p.arm !== cur.arm);
+  return {
+    phase: "during", block: cur.block + 1, arm: cur.arm, dayInPeriod: dayDiff(cur.start, todayIso) + 1,
+    periodDays: exp.protocol.periodDays, day: dayDiff(first.start, todayIso) + 1, totalDays: dayDiff(first.start, last.end) + 1,
+    next: later ? { date: later.start, arm: later.arm } : null,
+  };
+}
+
 /** Everything the experiment screen shows, computed from the protocol and the entries only. */
 export function analyze(exp, todayIso = toISO(Date.now())) {
   const p = exp.protocol, sched = schedule(exp);

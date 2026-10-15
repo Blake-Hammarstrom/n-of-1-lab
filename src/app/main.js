@@ -1,5 +1,5 @@
 // N-of-1 Lab UI. Local-first: experiments live in this browser's storage and never leave the device.
-import { analyze, blockTable, createExperiment, entriesCSV, exportData, importData, logValue, resultSummary, scheduleICS, verifyPrereg } from "./model.js";
+import { analyze, blockTable, createExperiment, entriesCSV, exportData, importData, logValue, periodStatus, resultSummary, scheduleICS, verifyPrereg } from "./model.js";
 import { minBlocksForInterval } from "../engine/stats.js";
 import { blocksNeeded, power, resolutionCheck } from "../engine/planner.js";
 import { toISO } from "../engine/schedule.js";
@@ -155,12 +155,14 @@ async function experiment(exp, { readOnly = false } = {}) {
   const label = (arm) => (arm === "A" ? p.aLabel : p.bLabel);
   const intact = await verifyPrereg(exp);
   const entry = exp.entries[t];
+  const ps = readOnly || exp.status !== "running" ? null : periodStatus(exp, t);
   const todayCard = readOnly ? "" : exp.status !== "running" ? `<div class="card today"><p class="muted">This experiment is ${esc(exp.status)}.</p></div>`
-    : !a.started ? `<div class="card today"><span class="muted">Starts ${esc(p.start)}</span><p>Your first period is <b class="arm-${a.schedule[0].arm}">${esc(label(a.schedule[0].arm))}</b>.</p></div>`
+    : !a.started ? `<div class="card today"><span class="muted">Starts ${esc(p.start)} · in ${ps.startsIn} ${ps.startsIn === 1 ? "day" : "days"}</span><p>Your first period is <b class="arm-${a.schedule[0].arm}">${esc(label(a.schedule[0].arm))}</b>.</p></div>`
     : a.finished ? `<div class="card today"><b>The planned length is complete.</b><p class="muted">Log any missing days, then read your result below.</p></div>`
     : `<div class="card today">
         <span class="muted">Today · block ${a.today.block + 1} of ${p.blocks}</span>
         <div class="arm-big arm-${a.todayArm}">${esc(label(a.todayArm))}</div>
+        <p class="muted small">Day ${ps.dayInPeriod} of ${ps.periodDays} of this period · day ${ps.day} of ${ps.totalDays}. ${ps.next ? `Switches to <b class="arm-${ps.next.arm}">${esc(label(ps.next.arm))}</b> on ${esc(ps.next.date)}.` : "This is the last period."}</p>
         <form id="log" class="log">
           <label>${esc(p.outcome.name)}${p.outcome.unit ? ` (${esc(p.outcome.unit)})` : ""}<input name="value" type="number" step="any" required value="${entry ? esc(entry.value) : ""}" inputmode="decimal"></label>
           <label class="check"><input type="checkbox" name="followed" ${entry && entry.followed === false ? "" : "checked"}> I followed today's assignment</label>
